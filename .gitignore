@@ -1,0 +1,8 @@
+db.sqlite3
+db.sqlite3.backup
+.env
+test_e2e.py
+.freebuff
+sqlite_data_utf8.json
+sqlite_data.json
+__pycache__/
