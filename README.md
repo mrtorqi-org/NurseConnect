@@ -4,8 +4,7 @@
 
 ## 📌 Overview
 
-**NurseConnect** is an academic full-stack web application developed as part of an MCA project.
-
+**NurseConnect** is an academic full-stack web application.
 The platform is designed to simplify the recruitment process between **hospitals** and **nurse candidates**. Instead of allowing candidates to browse and apply for individual jobs, NurseConnect maintains a verified candidate pool from which suitable candidates can be shortlisted according to the requirements submitted by hospitals.
 
 The platform includes dedicated workflows for candidates, hospitals, administrators, and verifiers.
