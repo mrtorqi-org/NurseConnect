@@ -6,8 +6,10 @@ class RecruitmentRequirement(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('processing', 'Processing'),
+        ('approved', 'Approved'),
         ('shortlisted', 'Shortlisted'),
         ('completed', 'Completed'),
+        ('rejected', 'Rejected'),
     ]
 
     QUALIFICATION_CHOICES = [

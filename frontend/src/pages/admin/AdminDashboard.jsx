@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
-import { Users, Building2, ClipboardList, CheckCircle, Clock, ArrowRight, TrendingUp } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Users, Building2, ClipboardList, CheckCircle, Clock, ArrowRight, TrendingUp, Check, Loader2, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PageTransition, StaggerContainer, StaggerItem, AnimatedCounter, AnimatedProgress, HoverCard } from '../../components/animations';
 import { FloatingParticles } from '../../components/illustrations';
@@ -10,6 +11,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [requirements, setRequirements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -20,6 +22,25 @@ export default function AdminDashboard() {
       setRequirements(r.data.results || r.data || []);
     }).finally(() => setLoading(false));
   }, []);
+
+  const handleApprove = async (reqId) => {
+    if (!window.confirm('Approve this requirement and automatically shortlist matching verified candidates?')) return;
+    setApproving(reqId);
+    try {
+      const res = await api.post(`/recruitment/requirements/${reqId}/approve/`);
+      toast.success(`Approved! ${res.data.candidates_shortlisted} verified candidates shortlisted.`);
+      // Refresh requirements
+      const reqRes = await api.get('/recruitment/requirements/');
+      setRequirements(reqRes.data.results || reqRes.data || []);
+      // Refresh stats
+      const statsRes = await api.get('/recruitment/admin/stats/');
+      setStats(statsRes.data);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to approve requirement');
+    } finally {
+      setApproving(null);
+    }
+  };
 
   if (loading) return (
     <div className="space-y-6">
@@ -97,22 +118,50 @@ export default function AdminDashboard() {
                 <StaggerItem key={r.id}>
                   <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 last:border-0 hover:bg-gray-50/50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${r.status === 'shortlisted' ? 'bg-green-500' : r.status === 'processing' ? 'bg-amber-500' : 'bg-gray-300'}`} />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        r.status === 'shortlisted' ? 'bg-green-500' : 
+                        r.status === 'approved' ? 'bg-blue-500' : 
+                        r.status === 'processing' ? 'bg-amber-500' : 'bg-gray-300'
+                      }`} />
                       <div>
                         <p className="text-sm font-medium text-text-primary">{r.title}</p>
                         <p className="text-xs text-text-secondary mt-0.5">{r.hospital_name} · {r.quantity} nurses · {r.specialization_display}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${r.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' : r.status === 'processing' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        r.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                        r.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
+                        r.status === 'processing' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
+                        'bg-gray-100 text-gray-600 border border-gray-200'
+                      }`}>
                         {r.status_display}
                       </span>
-                      {r.status === 'pending' && (
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                          <Link to={`/admin/requirements/${r.id}/matches`} className="text-xs text-primary font-medium bg-primary-light px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors">
-                            Find Matches
-                          </Link>
-                        </motion.div>
+                      {(r.status === 'pending' || r.status === 'processing') && (
+                        <div className="flex gap-2">
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <button
+                              onClick={() => handleApprove(r.id)}
+                              disabled={approving === r.id}
+                              className="flex items-center gap-1.5 text-xs font-medium bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                            >
+                              {approving === r.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )}
+                              Approve & Auto-Shortlist
+                            </button>
+                          </motion.div>
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Link to={`/admin/requirements/${r.id}/matches`} className="text-xs text-primary font-medium bg-primary-light px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors">
+                              Find Matches
+                            </Link>
+                          </motion.div>
+                        </div>
+                      )}
+                      {r.status === 'approved' && (
+                        <span className="text-xs text-blue-600 font-medium">Waiting for shortlist...</span>
                       )}
                     </div>
                   </div>

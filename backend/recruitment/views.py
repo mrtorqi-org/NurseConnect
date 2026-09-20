@@ -39,6 +39,117 @@ class RequirementDetailView(generics.RetrieveAPIView):
         return RecruitmentRequirement.objects.none()
 
 
+class ApproveRequirementView(APIView):
+    """Admin approves a requirement and triggers automated shortlisting."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role != "admin":
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            requirement = RecruitmentRequirement.objects.get(pk=pk)
+        except RecruitmentRequirement.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if requirement.status not in ('pending', 'processing'):
+            return Response({"error": "Requirement cannot be approved in current state"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if shortlist already exists
+        existing_shortlist = Shortlist.objects.filter(requirement=requirement).first()
+        if existing_shortlist:
+            return Response({"error": "Shortlist already exists for this requirement"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Approve the requirement
+        requirement.status = 'approved'
+        requirement.save()
+
+        # Trigger automated shortlisting
+        auto_shortlist_result = _automated_shortlisting(requirement, request.user)
+
+        return Response({
+            "message": "Requirement approved and auto-shortlisting completed",
+            "shortlist_id": auto_shortlist_result["shortlist_id"],
+            "candidates_shortlisted": auto_shortlist_result["candidates_shortlisted"],
+            "requirements_met": auto_shortlist_result["requirements_met"],
+        }, status=status.HTTP_200_OK)
+
+
+def _automated_shortlisting(requirement, created_by):
+    """
+    Automatically match verified candidates to a requirement and create a shortlist.
+    Only candidates with both DigiLocker and KNMC verification are considered.
+    """
+    # Get all verified candidates (both DigiLocker AND KNMC must be verified)
+    candidates = CandidateProfile.objects.filter(
+        verification__digilocker_status="verified",
+        verification__knmc_status="verified",
+    ).select_related("verification").prefetch_related(
+        "qualifications", "experiences", "specializations", "licenses"
+    )
+
+    # Qualification level mapping
+    QUAL_LEVELS = {"PHD": 5, "MSC": 4, "BSC": 3, "POST_BASIC": 3, "DIPLOMA": 2, "GNM": 1, "ANY": 0}
+
+    matching_candidates = []
+    requirements_met = {
+        "qualification": True,
+        "experience": True,
+        "specialization": True,
+        "license": True,
+    }
+
+    for candidate in candidates:
+        # Check qualification
+        if requirement.min_qualification != "ANY":
+            req_level = QUAL_LEVELS.get(requirement.min_qualification, 0)
+            best_level = max((q.degree_level for q in candidate.qualifications.all()), default=0)
+            if best_level < req_level:
+                requirements_met["qualification"] = False
+                continue
+
+        # Check experience
+        total_exp = sum(e.years_of_experience for e in candidate.experiences.all())
+        if total_exp < requirement.min_experience:
+            requirements_met["experience"] = False
+            continue
+
+        # Check specialization
+        if requirement.specialization != "ANY":
+            spec_names = list(candidate.specializations.values_list("name", flat=True))
+            if requirement.specialization not in spec_names:
+                requirements_met["specialization"] = False
+                continue
+
+        # Check license
+        if requirement.license_required and not candidate.licenses.exists():
+            requirements_met["license"] = False
+            continue
+
+        matching_candidates.append(candidate)
+
+    # Create a new Shortlist
+    shortlist = Shortlist.objects.create(
+        requirement=requirement,
+        created_by=created_by,
+        notes=f"Auto-generated shortlist: {len(matching_candidates)} verified candidates matched",
+    )
+
+    # Add all matching verified candidates to the shortlist
+    for candidate in matching_candidates:
+        ShortlistedCandidate.objects.create(shortlist=shortlist, candidate=candidate)
+
+    # Update requirement status to shortlisted
+    requirement.status = "shortlisted"
+    requirement.processed_at = timezone.now()
+    requirement.save()
+
+    return {
+        "shortlist_id": shortlist.id,
+        "candidates_shortlisted": len(matching_candidates),
+        "requirements_met": requirements_met,
+    }
+
+
 class RequirementMatchesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -177,5 +288,6 @@ class AdminStatsView(APIView):
             "total_requirements": RecruitmentRequirement.objects.count(),
             "pending_requirements": RecruitmentRequirement.objects.filter(status="pending").count(),
             "processing_requirements": RecruitmentRequirement.objects.filter(status="processing").count(),
+            "approved_requirements": RecruitmentRequirement.objects.filter(status="approved").count(),
             "shortlisted_requirements": RecruitmentRequirement.objects.filter(status="shortlisted").count(),
         })
