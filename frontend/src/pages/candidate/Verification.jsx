@@ -40,9 +40,9 @@ export default function Verification() {
   };
 
   if (loading) return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-      {[1,2].map(i => <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />)}
+      {[1, 2].map(i => <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />)}
     </div>
   );
 
@@ -65,7 +65,7 @@ export default function Verification() {
 
   return (
     <PageTransition>
-      <div className="max-w-2xl space-y-6">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">Verification</h1>
         <p className="text-text-secondary">Complete verification to make your profile eligible for recruitment.</p>
 

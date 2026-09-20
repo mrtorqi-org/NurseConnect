@@ -52,7 +52,7 @@ export default function ShortlistBuilder() {
   };
 
   if (loading) return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
       <div className="h-64 bg-gray-200 rounded-xl animate-pulse" />
     </div>
@@ -60,7 +60,7 @@ export default function ShortlistBuilder() {
 
   return (
     <PageTransition>
-      <div className="max-w-5xl space-y-6">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">Create Shortlist</h1>
         {!selectedReq ? (
           <div className="space-y-3">

@@ -16,4 +16,9 @@ urlpatterns = [
     path('verification/knmc/', views.MockKNMCView.as_view(), name='mock-knmc'),
     path('verification/status/', views.VerificationStatusView.as_view(), name='verification-status'),
     path('pool/', views.CandidatePoolView.as_view(), name='candidate-pool'),
+    # Document upload/view endpoints
+    path('documents/upload/', views.DocumentUploadView.as_view(), name='document-upload'),
+    path('documents/', views.DocumentListView.as_view(), name='document-list'),
+    path('documents/<int:pk>/', views.DocumentDownloadView.as_view(), name='document-detail'),
+    path('documents/candidate/<int:candidate_id>/', views.CandidateDocumentsForShortlistView.as_view(), name='candidate-documents'),
 ]

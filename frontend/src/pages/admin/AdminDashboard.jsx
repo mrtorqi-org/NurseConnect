@@ -22,10 +22,10 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
       <div className="grid sm:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 rounded-2xl shimmer" />)}
+        {[1, 2, 3, 4].map(i => <div key={i} className="h-28 rounded-2xl shimmer" />)}
       </div>
       <div className="h-64 bg-gray-200 rounded-2xl animate-pulse" />
     </div>
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
 
   return (
     <PageTransition>
-      <div className="max-w-5xl space-y-6">
+      <div className="space-y-6">
         {/* Header with gradient mesh */}
         <div className="relative gradient-mesh-strong rounded-2xl p-6 border border-border/40">
           <FloatingParticles count={5} />

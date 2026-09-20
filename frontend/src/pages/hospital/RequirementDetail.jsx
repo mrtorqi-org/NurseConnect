@@ -16,7 +16,7 @@ export default function RequirementDetail() {
   }, [id]);
 
   if (loading) return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="h-4 bg-gray-200 rounded w-40 animate-pulse" />
       <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
     </div>
@@ -25,7 +25,7 @@ export default function RequirementDetail() {
 
   return (
     <PageTransition>
-      <div className="max-w-3xl space-y-6">
+      <div className="space-y-6">
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Link to="/hospital/requirements" className="text-sm text-primary hover:underline">← Back to Requirements</Link>
         </motion.div>

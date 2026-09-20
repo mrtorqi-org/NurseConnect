@@ -29,7 +29,7 @@ export default function HospitalVerification() {
   };
 
   if (loading) return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
       <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
     </div>
@@ -38,7 +38,7 @@ export default function HospitalVerification() {
 
   return (
     <PageTransition>
-      <div className="max-w-2xl space-y-6">
+      <div className="space-y-6">
         <motion.button onClick={() => navigate(-1)} className="text-sm text-primary hover:underline" whileHover={{ x: -4 }}>← Back</motion.button>
 
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}

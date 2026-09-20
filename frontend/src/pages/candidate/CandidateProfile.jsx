@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
-import { Plus, X, Edit2 } from 'lucide-react';
+import { Plus, X, Edit2, Upload, FileText, Camera, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition, StaggerContainer, StaggerItem, HoverCard } from '../../components/animations';
 import { validatePhone } from '../../utils/validators';
@@ -19,10 +19,53 @@ const SPECIALIZATIONS = [
   { value: 'OBSTETRIC', label: 'Obstetric / Maternity' }, { value: 'NEONATAL', label: 'Neonatal' },
 ];
 
+const DOCUMENT_TYPES = [
+  { value: 'profile_photo', label: 'Profile Photo', icon: Camera, accept: 'image/*' },
+  { value: 'registration_certificate', label: 'Registration Certificate', icon: FileText, accept: 'image/*,.pdf' },
+  { value: 'qualification_certificate', label: 'Qualification Certificate', icon: FileText, accept: 'image/*,.pdf' },
+];
+
+function DocumentViewer({ document, onClose }) {
+  if (!document) return null;
+  const isImage = document.document_url && (document.document_url.match(/\.(jpg|jpeg|png|webp|gif)$/i));
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div className="absolute inset-0 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
+        className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h3 className="font-semibold text-lg">{document.document_type_display}</h3>
+            {document.title && <p className="text-xs text-text-secondary mt-0.5">{document.title}</p>}
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5">
+          {isImage ? (
+            <img src={document.document_url} alt={document.document_type_display} className="w-full h-auto rounded-lg border border-border" />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <FileText className="w-16 h-16 text-text-secondary/30" />
+              <p className="text-text-secondary text-sm">Document preview not available</p>
+              <a href={document.document_url} target="_blank" rel="noopener noreferrer"
+                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">
+                Open Document
+              </a>
+            </div>
+          )}
+          <p className="text-xs text-text-secondary mt-4 text-center">
+            Uploaded: {new Date(document.uploaded_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function Modal({ open, onClose, title, children }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div className="absolute inset-0 bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }}
         className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-auto">
@@ -45,11 +88,18 @@ export default function CandidateProfile() {
   const [showExp, setShowExp] = useState(false);
   const [showSpec, setShowSpec] = useState(false);
   const [showLic, setShowLic] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const [qualForm, setQualForm] = useState({ degree: 'BSC', institution: '', year_of_completion: 2024, grade: '' });
   const [expForm, setExpForm] = useState({ hospital_name: '', designation: '', years_of_experience: 1, specialization_name: '' });
   const [specForm, setSpecForm] = useState({ name: 'ICU' });
   const [licForm, setLicForm] = useState({ license_number: '', issuing_body: 'Kerala Nurses and Midwives Council', expiry_date: '' });
   const [phoneError, setPhoneError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const fileInputRef = useRef(null);
+  const [selectedDocType, setSelectedDocType] = useState('profile_photo');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [docTitle, setDocTitle] = useState('');
 
   const load = () => {
     api.get('/candidates/profile/').then(res => {
@@ -59,6 +109,49 @@ export default function CandidateProfile() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Document functions
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error('Please select a file');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('document', selectedFile);
+      formData.append('document_type', selectedDocType);
+      if (docTitle.trim()) {
+        formData.append('title', docTitle.trim());
+      }
+      await api.post('/candidates/documents/upload/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Document uploaded successfully');
+      setSelectedFile(null);
+      setDocTitle('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const getExistingDocument = (docType) => {
+    if (!profile?.documents) return null;
+    return profile.documents.find(d => d.document_type === docType);
+  };
+
+  // End document functions
 
   const saveProfile = async () => {
     const pErr = validatePhone(form.phone);
@@ -78,15 +171,15 @@ export default function CandidateProfile() {
   const delItem = async (url) => { await api.delete(url); toast.success('Removed'); load(); };
 
   if (loading) return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-      {[1,2,3,4].map(i => <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />)}
+      {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />)}
     </div>
   );
 
   return (
     <PageTransition>
-      <div className="max-w-4xl space-y-6">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">My Profile</h1>
 
         {/* Personal Info */}
@@ -99,9 +192,9 @@ export default function CandidateProfile() {
           <AnimatePresence mode="wait">
             {editing ? (
               <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                <div><label className="block text-sm font-medium mb-1">Phone</label><input value={form.phone} onChange={e => { setForm({...form, phone: e.target.value}); setPhoneError(''); }} onBlur={() => setPhoneError(validatePhone(form.phone))} className={"w-full px-3 py-2 rounded-lg border text-sm focus:ring-2 focus:ring-primary transition-shadow " + (phoneError ? 'border-red-300' : 'border-border')} placeholder="e.g. 9876543210 or +919876543210" />{phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}</div>
-                <div><label className="block text-sm font-medium mb-1">Address</label><textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={2} /></div>
-                <div><label className="block text-sm font-medium mb-1">Bio</label><textarea value={form.bio} onChange={e => setForm({...form, bio: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={3} /></div>
+                <div><label className="block text-sm font-medium mb-1">Phone</label><input value={form.phone} onChange={e => { setForm({ ...form, phone: e.target.value }); setPhoneError(''); }} onBlur={() => setPhoneError(validatePhone(form.phone))} className={"w-full px-3 py-2 rounded-lg border text-sm focus:ring-2 focus:ring-primary transition-shadow " + (phoneError ? 'border-red-300' : 'border-border')} placeholder="e.g. 9876543210 or +919876543210" />{phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}</div>
+                <div><label className="block text-sm font-medium mb-1">Address</label><textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={2} /></div>
+                <div><label className="block text-sm font-medium mb-1">Bio</label><textarea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={3} /></div>
                 <motion.button onClick={saveProfile} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark">Save</motion.button>
               </motion.div>
             ) : (
@@ -187,42 +280,110 @@ export default function CandidateProfile() {
           ) : <p className="text-sm text-text-secondary">No licenses added yet.</p>}
         </motion.div>
 
+        {/* Documents & Photos */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-white rounded-xl border border-border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-text-primary">Documents & Photos</h2>
+            <motion.button onClick={() => setShowDocs(true)} whileHover={{ scale: 1.05 }} className="text-sm text-primary hover:underline flex items-center gap-1"><Upload className="w-4 h-4" /> Upload</motion.button>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {DOCUMENT_TYPES.map(docType => {
+              const existing = getExistingDocument(docType.value);
+              const Icon = docType.icon;
+              return (
+                <HoverCard key={docType.value} className="relative overflow-hidden">
+                  <div className={`p-4 rounded-xl border ${existing ? 'border-primary/30 bg-primary-light/30' : 'border-border bg-gray-50'}`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <Icon className={`w-5 h-5 ${existing ? 'text-primary' : 'text-text-secondary/50'}`} />
+                      <span className="text-sm font-medium text-text-primary">{docType.label}</span>
+                    </div>
+                    {existing ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setViewingDoc(existing)} className="text-xs text-primary hover:underline flex items-center gap-1">
+                          <Eye className="w-3 h-3" /> View
+                        </button>
+                        <span className="text-xs text-text-secondary">uploaded</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-secondary/60">Not uploaded</p>
+                    )}
+                  </div>
+                </HoverCard>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {/* Modals */}
         <Modal open={showQual} onClose={() => setShowQual(false)} title="Add Qualification">
           <div className="space-y-3">
-            <select value={qualForm.degree} onChange={e => setQualForm({...qualForm, degree: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm">{DEGREES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}</select>
-            <input placeholder="Institution" value={qualForm.institution} onChange={e => setQualForm({...qualForm, institution: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input type="number" placeholder="Year" value={qualForm.year_of_completion} onChange={e => setQualForm({...qualForm, year_of_completion: parseInt(e.target.value)})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input placeholder="Grade (optional)" value={qualForm.grade} onChange={e => setQualForm({...qualForm, grade: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <select value={qualForm.degree} onChange={e => setQualForm({ ...qualForm, degree: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm">{DEGREES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}</select>
+            <input placeholder="Institution" value={qualForm.institution} onChange={e => setQualForm({ ...qualForm, institution: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input type="number" placeholder="Year" value={qualForm.year_of_completion} onChange={e => setQualForm({ ...qualForm, year_of_completion: parseInt(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="Grade (optional)" value={qualForm.grade} onChange={e => setQualForm({ ...qualForm, grade: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
             <motion.button onClick={addQual} whileTap={{ scale: 0.98 }} className="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-dark">Add Qualification</motion.button>
           </div>
         </Modal>
 
         <Modal open={showExp} onClose={() => setShowExp(false)} title="Add Experience">
           <div className="space-y-3">
-            <input placeholder="Hospital Name" value={expForm.hospital_name} onChange={e => setExpForm({...expForm, hospital_name: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input placeholder="Designation" value={expForm.designation} onChange={e => setExpForm({...expForm, designation: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input type="number" placeholder="Years" value={expForm.years_of_experience} onChange={e => setExpForm({...expForm, years_of_experience: parseInt(e.target.value)})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input placeholder="Specialization (optional)" value={expForm.specialization_name} onChange={e => setExpForm({...expForm, specialization_name: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="Hospital Name" value={expForm.hospital_name} onChange={e => setExpForm({ ...expForm, hospital_name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="Designation" value={expForm.designation} onChange={e => setExpForm({ ...expForm, designation: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input type="number" placeholder="Years" value={expForm.years_of_experience} onChange={e => setExpForm({ ...expForm, years_of_experience: parseInt(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="Specialization (optional)" value={expForm.specialization_name} onChange={e => setExpForm({ ...expForm, specialization_name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
             <motion.button onClick={addExp} whileTap={{ scale: 0.98 }} className="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-dark">Add Experience</motion.button>
           </div>
         </Modal>
 
         <Modal open={showSpec} onClose={() => setShowSpec(false)} title="Add Specialization">
           <div className="space-y-3">
-            <select value={specForm.name} onChange={e => setSpecForm({name: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm">{SPECIALIZATIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
+            <select value={specForm.name} onChange={e => setSpecForm({ name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm">{SPECIALIZATIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
             <motion.button onClick={addSpec} whileTap={{ scale: 0.98 }} className="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-dark">Add Specialization</motion.button>
           </div>
         </Modal>
 
         <Modal open={showLic} onClose={() => setShowLic(false)} title="Add License">
           <div className="space-y-3">
-            <input placeholder="License Number" value={licForm.license_number} onChange={e => setLicForm({...licForm, license_number: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input placeholder="Issuing Body" value={licForm.issuing_body} onChange={e => setLicForm({...licForm, issuing_body: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
-            <input type="date" value={licForm.expiry_date} onChange={e => setLicForm({...licForm, expiry_date: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="License Number" value={licForm.license_number} onChange={e => setLicForm({ ...licForm, license_number: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input placeholder="Issuing Body" value={licForm.issuing_body} onChange={e => setLicForm({ ...licForm, issuing_body: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            <input type="date" value={licForm.expiry_date} onChange={e => setLicForm({ ...licForm, expiry_date: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
             <motion.button onClick={addLic} whileTap={{ scale: 0.98 }} className="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-dark">Add License</motion.button>
           </div>
         </Modal>
+
+        {/* Document Upload Modal */}
+        <Modal open={showDocs} onClose={() => { setShowDocs(false); setSelectedFile(null); setDocTitle(''); }} title="Upload Document">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Document Type</label>
+              <div className="grid grid-cols-1 gap-2">
+                {DOCUMENT_TYPES.map(dt => (
+                  <button key={dt.value} onClick={() => setSelectedDocType(dt.value)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm transition-colors ${selectedDocType === dt.value ? 'border-primary bg-primary-light text-primary' : 'border-border hover:bg-gray-50'}`}>
+                    <dt.icon className="w-5 h-5" />
+                    <span className="font-medium">{dt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Title (optional)</label>
+              <input placeholder="e.g. B.Sc Nursing Certificate" value={docTitle} onChange={e => setDocTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">File</label>
+              <input ref={fileInputRef} type="file" accept={DOCUMENT_TYPES.find(d => d.value === selectedDocType)?.accept} onChange={handleFileSelect} className="w-full px-3 py-2 rounded-lg border border-border text-sm" />
+              {selectedFile && <p className="text-xs text-primary mt-1">Selected: {selectedFile.name}</p>}
+            </div>
+            <motion.button onClick={handleUpload} disabled={uploading || !selectedFile} whileTap={{ scale: 0.98 }}
+              className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-medium hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed">
+              {uploading ? 'Uploading...' : 'Upload Document'}
+            </motion.button>
+          </div>
+        </Modal>
+
+        {/* Document Viewer */}
+        <DocumentViewer document={viewingDoc} onClose={() => setViewingDoc(null)} />
       </div>
     </PageTransition>
   );

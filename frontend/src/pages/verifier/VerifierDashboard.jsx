@@ -13,21 +13,21 @@ export default function VerifierDashboard() {
   useEffect(() => {
     api.get('/hospitals/verifier/pending/')
       .then(res => setHospitals(res.data.results || res.data || []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <div className="h-24 rounded-2xl shimmer" />
       <div className="h-10 rounded-xl shimmer" />
-      {[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl shimmer" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl shimmer" />)}
     </div>
   );
 
   return (
     <PageTransition>
-      <div className="max-w-3xl space-y-4">
+      <div className="space-y-4">
         {/* Header */}
         <div className="relative gradient-mesh-strong rounded-2xl p-6 border border-border/40">
           <FloatingParticles count={3} />

@@ -63,7 +63,7 @@ function AnimatedRoutes() {
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
         {/* Candidate */}
-        <Route path="/candidate" element={<ProtectedRoute allowedRoles={['candidate']}><DashboardLayout role="candidate"><CandidateDashboard /></DashboardLayout></ProtectedRoute>} />
+        <Route path="/candidate" end element={<ProtectedRoute allowedRoles={['candidate']}><DashboardLayout role="candidate"><CandidateDashboard /></DashboardLayout></ProtectedRoute>} />
         <Route path="/candidate/profile" element={<ProtectedRoute allowedRoles={['candidate']}><DashboardLayout role="candidate"><CandidateProfile /></DashboardLayout></ProtectedRoute>} />
         <Route path="/candidate/verification" element={<ProtectedRoute allowedRoles={['candidate']}><DashboardLayout role="candidate"><Verification /></DashboardLayout></ProtectedRoute>} />
 

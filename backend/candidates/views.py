@@ -3,11 +3,14 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import CandidateProfile, Qualification, Experience, Specialization, LicenseInfo, VerificationRequest
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.shortcuts import get_object_or_404
+from .models import CandidateProfile, Qualification, Experience, Specialization, LicenseInfo, VerificationRequest, CandidateDocument
 from .serializers import (
     CandidateProfileSerializer, CandidateProfileUpdateSerializer,
     QualificationSerializer, ExperienceSerializer, SpecializationSerializer,
-    LicenseInfoSerializer, VerificationRequestSerializer
+    LicenseInfoSerializer, VerificationRequestSerializer,
+    CandidateDocumentSerializer
 )
 
 
@@ -210,3 +213,135 @@ class CandidatePoolView(APIView):
             verification__knmc_status='verified'
         )
         return Response(CandidateProfileSerializer(candidates, many=True).data)
+
+
+# Document upload views
+class DocumentUploadView(APIView):
+    """Upload a document for the candidate's profile"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request):
+        document_type = request.data.get('document_type')
+        if document_type not in dict(CandidateDocument.DOCUMENT_TYPE_CHOICES):
+            return Response(
+                {'error': 'Invalid document type'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        profile = get_candidate_profile(request.user)
+        if not profile:
+            return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if a document of this type already exists
+        existing, created = CandidateDocument.objects.get_or_create(
+            candidate=profile,
+            document_type=document_type,
+            defaults={
+                'document': request.data.get('document'),
+                'title': request.data.get('title', '')
+            }
+        )
+
+        if not created:
+            # Update existing document
+            if request.data.get('document'):
+                existing.document = request.data.get('document')
+                if request.data.get('title'):
+                    existing.title = request.data.get('title')
+                existing.save()
+            return Response(
+                CandidateDocumentSerializer(existing, context={'request': request}).data,
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            CandidateDocumentSerializer(existing, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class DocumentListView(APIView):
+    """List all documents for the requesting candidate"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = get_candidate_profile(request.user)
+        if not profile:
+            return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        documents = CandidateDocument.objects.filter(candidate=profile)
+        return Response(
+            CandidateDocumentSerializer(documents, many=True, context={'request': request}).data
+        )
+
+
+class DocumentDownloadView(APIView):
+    """Download/view a document with permission checks"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from recruitment.models import ShortlistedCandidate
+        
+        document = get_object_or_404(CandidateDocument, pk=pk)
+        candidate = document.candidate
+
+        # Candidates can view their own documents
+        if request.user == candidate.user:
+            pass
+        # Admins can view all documents
+        elif request.user.role == 'admin':
+            pass
+        # Hospitals can view only if the candidate is in their shortlist
+        elif request.user.role == 'hospital':
+            is_in_shortlist = ShortlistedCandidate.objects.filter(
+                candidate=candidate,
+                shortlist__requirement__hospital=request.user,
+                shortlist__is_sent=True
+            ).exists()
+            if not is_in_shortlist:
+                return Response(
+                    {'error': 'You can only view documents of candidates in your shortlists'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {'error': 'Unauthorized'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return Response(CandidateDocumentSerializer(document, context={'request': request}).data)
+
+
+class CandidateDocumentsForShortlistView(APIView):
+    """Get all documents for a candidate - for hospitals viewing shortlisted candidates"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, candidate_id):
+        from recruitment.models import ShortlistedCandidate
+        
+        if request.user.role not in ('hospital', 'admin'):
+            return Response(
+                {'error': 'Unauthorized'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        candidate = get_object_or_404(CandidateProfile, pk=candidate_id)
+
+        # Hospitals need to check shortlist access
+        if request.user.role == 'hospital':
+            is_in_shortlist = ShortlistedCandidate.objects.filter(
+                candidate=candidate,
+                shortlist__requirement__hospital=request.user,
+                shortlist__is_sent=True
+            ).exists()
+            if not is_in_shortlist:
+                return Response(
+                    {'error': 'You can only view documents of candidates in your shortlists'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        documents = CandidateDocument.objects.filter(candidate=candidate)
+        return Response(
+            CandidateDocumentSerializer(documents, many=True, context={'request': request}).data
+        )

@@ -1,6 +1,34 @@
 from rest_framework import serializers
 from .models import RecruitmentRequirement, Shortlist, ShortlistedCandidate
 from candidates.serializers import CandidateProfileSerializer
+from candidates.models import CandidateDocument
+
+
+class CandidateDocumentSerializer(serializers.ModelSerializer):
+    document_type_display = serializers.CharField(source='get_document_type_display', read_only=True)
+    document_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CandidateDocument
+        fields = ['id', 'document_type', 'document_type_display', 'document', 'document_url', 'title', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+    def get_document_url(self, obj):
+        request = self.context.get('request')
+        if obj.document and hasattr(obj.document, 'url'):
+            url = obj.document.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None
+
+
+class CandidateProfileSerializerWithDocs(CandidateProfileSerializer):
+    """Extended profile serializer that includes documents for shortlist views"""
+    documents = CandidateDocumentSerializer(many=True, read_only=True)
+
+    class Meta(CandidateProfileSerializer.Meta):
+        fields = CandidateProfileSerializer.Meta.fields + ['documents']
 
 
 class RecruitmentRequirementSerializer(serializers.ModelSerializer):
@@ -28,7 +56,7 @@ class RecruitmentRequirementSerializer(serializers.ModelSerializer):
 
 
 class ShortlistedCandidateSerializer(serializers.ModelSerializer):
-    candidate_detail = CandidateProfileSerializer(source='candidate', read_only=True)
+    candidate_detail = CandidateProfileSerializerWithDocs(source='candidate', read_only=True)
 
     class Meta:
         model = ShortlistedCandidate

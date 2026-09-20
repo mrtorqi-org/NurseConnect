@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CandidateProfile, Qualification, Experience, Specialization, LicenseInfo, VerificationRequest
+from .models import CandidateProfile, Qualification, Experience, Specialization, LicenseInfo, VerificationRequest, CandidateDocument
 
 @admin.register(CandidateProfile)
 class CandidateProfileAdmin(admin.ModelAdmin):
@@ -25,3 +25,10 @@ class LicenseInfoAdmin(admin.ModelAdmin):
 @admin.register(VerificationRequest)
 class VerificationRequestAdmin(admin.ModelAdmin):
     list_display = ['candidate', 'digilocker_status', 'knmc_status', 'submitted_at']
+
+@admin.register(CandidateDocument)
+class CandidateDocumentAdmin(admin.ModelAdmin):
+    list_display = ['candidate', 'document_type', 'title', 'uploaded_at']
+    list_filter = ['document_type', 'uploaded_at']
+    search_fields = ['candidate__user__username', 'title']
+    readonly_fields = ['candidate', 'document_type', 'uploaded_at']

@@ -123,6 +123,29 @@ class LicenseInfo(models.Model):
         return f"License: {self.license_number}"
 
 
+class CandidateDocument(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('profile_photo', 'Profile Photo'),
+        ('registration_certificate', 'Registration Certificate'),
+        ('qualification_certificate', 'Qualification Certificate'),
+    ]
+
+    candidate = models.ForeignKey(
+        CandidateProfile, on_delete=models.CASCADE, related_name='documents'
+    )
+    document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPE_CHOICES)
+    document = models.FileField(upload_to='candidate_documents/%Y/%m/%d/')
+    title = models.CharField(max_length=200, blank=True, default='')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['candidate', 'document_type']
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.candidate} - {self.get_document_type_display()}"
+
+
 class VerificationRequest(models.Model):
     STATUS_CHOICES = [
         ('not_submitted', 'Not Submitted'),

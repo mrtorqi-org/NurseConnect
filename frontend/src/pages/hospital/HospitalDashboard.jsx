@@ -22,10 +22,10 @@ export default function HospitalDashboard() {
   }, []);
 
   if (loading) return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <div className="h-24 rounded-2xl shimmer" />
       <div className="grid sm:grid-cols-3 gap-4">
-        {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl shimmer" />)}
+        {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl shimmer" />)}
       </div>
     </div>
   );
@@ -42,7 +42,7 @@ export default function HospitalDashboard() {
 
   return (
     <PageTransition>
-      <div className="max-w-4xl space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="relative gradient-mesh-strong rounded-2xl p-6 border border-border/40">
           <FloatingParticles count={4} />

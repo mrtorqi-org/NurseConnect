@@ -43,7 +43,7 @@ export default function RequirementMatches() {
   };
 
   if (loading) return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
       <div className="h-24 bg-gray-200 rounded-xl animate-pulse" />
       <div className="h-64 bg-gray-200 rounded-xl animate-pulse" />
@@ -53,7 +53,7 @@ export default function RequirementMatches() {
 
   return (
     <PageTransition>
-      <div className="max-w-5xl space-y-6">
+      <div className="space-y-6">
         <motion.button onClick={() => navigate(-1)} className="text-sm text-primary hover:underline" whileHover={{ x: -4 }}>
           ← Back
         </motion.button>

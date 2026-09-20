@@ -47,9 +47,9 @@ export default function HospitalProfile() {
   };
 
   if (loading) return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-      {[1,2].map(i => <div key={i} className="h-40 bg-gray-200 rounded-xl animate-pulse" />)}
+      {[1, 2].map(i => <div key={i} className="h-40 bg-gray-200 rounded-xl animate-pulse" />)}
     </div>
   );
 
@@ -57,7 +57,7 @@ export default function HospitalProfile() {
 
   return (
     <PageTransition>
-      <div className="max-w-4xl space-y-6">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">Hospital Profile</h1>
 
         {/* Verification status */}
@@ -88,13 +88,13 @@ export default function HospitalProfile() {
                 {['hospital_name', 'registration_number', 'address', 'city', 'state', 'phone', 'website'].map(f => (
                   <div key={f}>
                     <label className="block text-sm font-medium mb-1 capitalize">{f.replace('_', ' ')}</label>
-                    <input value={form[f] || ''} onChange={e => { setForm({...form, [f]: e.target.value}); if (f === 'phone') setPhoneError(''); }} onBlur={f === 'phone' ? () => setPhoneError(validatePhone(form.phone)) : undefined} className={'w-full px-3 py-2 rounded-lg border text-sm focus:ring-2 focus:ring-primary transition-shadow ' + (f === 'phone' && phoneError ? 'border-red-300' : 'border-border')} placeholder={f === 'phone' ? 'e.g. 9876543210' : ''} />
+                    <input value={form[f] || ''} onChange={e => { setForm({ ...form, [f]: e.target.value }); if (f === 'phone') setPhoneError(''); }} onBlur={f === 'phone' ? () => setPhoneError(validatePhone(form.phone)) : undefined} className={'w-full px-3 py-2 rounded-lg border text-sm focus:ring-2 focus:ring-primary transition-shadow ' + (f === 'phone' && phoneError ? 'border-red-300' : 'border-border')} placeholder={f === 'phone' ? 'e.g. 9876543210' : ''} />
                     {f === 'phone' && phoneError && <p className='text-xs text-red-500 mt-1'>{phoneError}</p>}
                   </div>
                 ))}
                 <div>
                   <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea value={form.description || ''} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={3} />
+                  <textarea value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:ring-2 focus:ring-primary" rows={3} />
                 </div>
                 <motion.button onClick={save} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark">Save</motion.button>
               </motion.div>

@@ -15,15 +15,15 @@ export default function AdminRequirements() {
   }, []);
 
   if (loading) return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-      {[1,2,3].map(i => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
     </div>
   );
 
   return (
     <PageTransition>
-      <div className="max-w-4xl space-y-4">
+      <div className="space-y-4">
         <h1 className="text-2xl font-bold text-text-primary">All Requirements</h1>
         {requirements.length ? (
           <StaggerContainer>

@@ -16,15 +16,15 @@ export default function RequirementsList() {
   }, []);
 
   if (loading) return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-      {[1,2,3].map(i => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
     </div>
   );
 
   return (
     <PageTransition>
-      <div className="max-w-4xl space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-text-primary">Requirements</h1>
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
